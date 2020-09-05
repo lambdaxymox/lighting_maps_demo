@@ -12,16 +12,17 @@ struct Camera {
 struct FragData {
     // The vertex position for a vertex in camera space.
     vec3 position_eye;
+    // The texture coordinates for a vertex.
+    vec2 tex_coords;
     // The normal vector for a fragment in camera space.
     vec3 normal_eye;
 };
 
 // Material properties for the Blinn-Phong shader model.
 struct Material {
-    vec3 ambient;
-    vec3 diffuse;
+    sampler2D diffuse;
     vec3 specular;
-    float specular_exponent;
+    float shininess;
 };
 
 // A point light with specular, diffuse, and ambient components. Each component is 
@@ -55,14 +56,14 @@ void main() {
     vec3 frag_result = vec3(0.0, 0.0, 0.0);
     for (int i = 0; i < num_lights; i++) {
         // Calculate the ambient part of the lighting model.
-        vec3 frag_ambient = lights[i].ambient * material.ambient;
+        vec3 frag_ambient = lights[i].ambient * vec3(texture(material.diffuse, vertex_data.tex_coords));
 
         // Calculate the diffuse part of the lighting model.
         vec3 norm_eye = normalize(vertex_data.normal_eye);
         vec3 light_position_eye = vec3(camera.view_mat * vec4(lights[i].position_world, 1.0));
         vec3 light_dir_eye = normalize(light_position_eye - vertex_data.position_eye);
         float diff = max(dot(norm_eye, light_dir_eye), 0.0);
-        vec3 frag_diffuse = lights[i].diffuse * (diff * material.diffuse);
+        vec3 frag_diffuse = lights[i].diffuse * diff * texture(material.diffuse, vertex_data.tex_coords);
 
         // Calculate the specular part of the lighting model.
         vec3 view_dir_eye = normalize(-vertex_data.position_eye);
