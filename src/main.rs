@@ -262,6 +262,54 @@ impl LightKinematics {
     }
 }
 
+struct TextureImage2D {
+    width: u32,
+    height: u32,
+    bytes_per_pixel: u32,
+    data: Vec<u8>,
+}
+
+impl TextureImage2D {
+    fn as_ptr(&self) -> *const u8 {
+        self.data.as_ptr()
+    }
+}
+
+fn load_image(buffer: &[u8]) -> TextureImage2D {
+    use image::png::PngDecoder;
+    use image::ImageDecoder;
+
+    let cursor = io::Cursor::new(buffer);
+    let image_decoder = PngDecoder::new(cursor).unwrap();
+    let (width, height) = image_decoder.dimensions();
+    let total_bytes = image_decoder.total_bytes();
+    let bytes_per_pixel = image_decoder.color_type().bytes_per_pixel() as u32;
+    let mut image_data = Vec::with_capacity(total_bytes as usize);
+    image_decoder.read_image(&mut image_data);
+
+    TextureImage2D {
+        width: width,
+        height: height,
+        bytes_per_pixel: bytes_per_pixel,
+        data: image_data,
+    }
+
+}
+
+struct LightingMap {
+    diffuse: TextureImage2D,
+    specular: TextureImage2D,
+}
+
+fn create_lighting_map() -> LightingMap {
+    let diffuse_asset = include_bytes!("../assets/container2_diffuse.png");
+    let specular_asset = include_bytes!("../assets/container2_specular.png");
+    let diffuse_map = load_image(diffuse_asset);
+    let specular_map = load_image(specular_asset);
+
+    LightingMap { diffuse: diffuse_map, specular: specular_map }
+}
+
 fn send_to_gpu_uniforms_mesh(shader: GLuint, model_mat: &Matrix4<f32>) {
     let model_mat_loc = unsafe {
         gl::GetUniformLocation(shader, backend::gl_str("model_mat").as_ptr())
@@ -491,16 +539,19 @@ fn send_to_gpu_light_mesh(shader: GLuint, mesh: &ObjMesh) -> (GLuint, GLuint) {
 
 /// Load texture image into the GPU.
 /// TODO: Move this function into the backend module.
-fn send_to_gpu_texture(atlas: &TextureAtlas2D, wrapping_mode: GLuint) -> Result<GLuint, String> {
+fn send_to_gpu_texture(texture_image: &TextureImage2D, wrapping_mode: GLuint) -> Result<GLuint, String> {
     let mut tex = 0;
     unsafe {
         gl::GenTextures(1, &mut tex);
+    }
+    debug_assert!(tex > 0);
+    unsafe {
         gl::ActiveTexture(gl::TEXTURE0);
         gl::BindTexture(gl::TEXTURE_2D, tex);
         gl::TexImage2D(
-            gl::TEXTURE_2D, 0, gl::RGBA as i32, atlas.width as i32, atlas.height as i32, 0,
-            gl::RGBA, gl::UNSIGNED_BYTE,
-            atlas.as_ptr() as *const GLvoid
+            gl::TEXTURE_2D, 0, gl::RGBA as i32, texture_image.width as i32, texture_image.height as i32, 0,
+            gl::RGB, gl::UNSIGNED_BYTE,
+            texture_image.as_ptr() as *const GLvoid
         );
         gl::GenerateMipmap(gl::TEXTURE_2D);
         gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_S, wrapping_mode as GLint);
@@ -508,7 +559,6 @@ fn send_to_gpu_texture(atlas: &TextureAtlas2D, wrapping_mode: GLuint) -> Result<
         gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl::LINEAR as GLint);
         gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::LINEAR_MIPMAP_LINEAR as GLint);
     }
-    debug_assert!(tex > 0);
 
     let mut max_aniso = 0.0;
     unsafe {
