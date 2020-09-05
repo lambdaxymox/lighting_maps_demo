@@ -22,7 +22,7 @@ struct FragData {
 struct Material {
     sampler2D diffuse;
     vec3 specular;
-    float shininess;
+    float specular_exponent;
 };
 
 // A point light with specular, diffuse, and ambient components. Each component is 
@@ -63,7 +63,7 @@ void main() {
         vec3 light_position_eye = vec3(camera.view_mat * vec4(lights[i].position_world, 1.0));
         vec3 light_dir_eye = normalize(light_position_eye - vertex_data.position_eye);
         float diff = max(dot(norm_eye, light_dir_eye), 0.0);
-        vec3 frag_diffuse = lights[i].diffuse * diff * texture(material.diffuse, vertex_data.tex_coords);
+        vec3 frag_diffuse = lights[i].diffuse * diff * vec3(texture(material.diffuse, vertex_data.tex_coords));
 
         // Calculate the specular part of the lighting model.
         vec3 view_dir_eye = normalize(-vertex_data.position_eye);

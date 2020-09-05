@@ -284,8 +284,8 @@ fn load_image(buffer: &[u8]) -> TextureImage2D {
     let (width, height) = image_decoder.dimensions();
     let total_bytes = image_decoder.total_bytes();
     let bytes_per_pixel = image_decoder.color_type().bytes_per_pixel() as u32;
-    let mut image_data = Vec::with_capacity(total_bytes as usize);
-    image_decoder.read_image(&mut image_data);
+    let mut image_data = vec![0 as u8; total_bytes as usize];
+    image_decoder.read_image(&mut image_data).unwrap();
 
     TextureImage2D {
         width: width,
