@@ -1,5 +1,6 @@
 extern crate glfw;
 extern crate gdmath;
+extern crate image;
 extern crate log;
 extern crate file_logger;
 extern crate mini_obj;
@@ -56,6 +57,10 @@ use std::mem;
 use std::ptr;
 
 
+// OpenGL extension constants.
+const GL_TEXTURE_MAX_ANISOTROPY_EXT: u32 = 0x84FE;
+const GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT: u32 = 0x84FF;
+
 // Default value for the color buffer.
 const CLEAR_COLOR: [f32; 4] = [0.2_f32, 0.2_f32, 0.2_f32, 1.0_f32];
 // Default value for the depth buffer.
@@ -64,12 +69,6 @@ const CLEAR_DEPTH: [f32; 4] = [1.0_f32, 1.0_f32, 1.0_f32, 1.0_f32];
 const SCREEN_WIDTH: u32 = 800;
 const SCREEN_HEIGHT: u32 = 600;
 
-fn create_mesh() -> ObjMesh {
-    let buffer = include_bytes!("../assets/teapot.obj");
-    let mesh = mini_obj::load_from_memory(buffer).unwrap();
-
-    mesh
-}
 
 fn create_box_mesh() -> ObjMesh {
     let points: Vec<[f32; 3]> = vec![
@@ -86,7 +85,20 @@ fn create_box_mesh() -> ObjMesh {
         [-0.5,  0.5, -0.5], [ 0.5,  0.5, -0.5], [ 0.5,  0.5,  0.5], 
         [ 0.5,  0.5,  0.5], [-0.5,  0.5,  0.5], [-0.5,  0.5, -0.5],  
     ];
-    let tex_coords = vec![];
+    let tex_coords = vec![
+        [0.0, 0.0], [1.0, 0.0], [1.0, 1.0],
+        [1.0, 1.0], [0.0, 1.0], [0.0, 0.0],
+        [0.0, 0.0], [1.0, 0.0], [1.0, 1.0],
+        [1.0, 1.0], [0.0, 1.0], [0.0, 0.0],
+        [1.0, 0.0], [1.0, 1.0], [0.0, 1.0],
+        [0.0, 1.0], [0.0, 0.0], [1.0, 0.0],
+        [1.0, 0.0], [1.0, 1.0], [0.0, 1.0],
+        [0.0, 1.0], [0.0, 0.0], [1.0, 0.0],
+        [0.0, 1.0], [1.0, 1.0], [1.0, 0.0],
+        [1.0, 0.0], [0.0, 0.0], [0.0, 1.0],
+        [0.0, 1.0], [1.0, 1.0], [1.0, 0.0],
+        [1.0, 0.0], [0.0, 0.0], [0.0, 1.0]
+    ];
     let normals = vec![
         [ 0.0,  0.0, -1.0], [ 0.0,  0.0, -1.0], [ 0.0,  0.0, -1.0],
         [ 0.0,  0.0, -1.0], [ 0.0,  0.0, -1.0], [ 0.0,  0.0, -1.0],
@@ -477,6 +489,37 @@ fn send_to_gpu_light_mesh(shader: GLuint, mesh: &ObjMesh) -> (GLuint, GLuint) {
     (vao, v_pos_vbo)
 }
 
+/// Load texture image into the GPU.
+/// TODO: Move this function into the backend module.
+fn send_to_gpu_texture(atlas: &TextureAtlas2D, wrapping_mode: GLuint) -> Result<GLuint, String> {
+    let mut tex = 0;
+    unsafe {
+        gl::GenTextures(1, &mut tex);
+        gl::ActiveTexture(gl::TEXTURE0);
+        gl::BindTexture(gl::TEXTURE_2D, tex);
+        gl::TexImage2D(
+            gl::TEXTURE_2D, 0, gl::RGBA as i32, atlas.width as i32, atlas.height as i32, 0,
+            gl::RGBA, gl::UNSIGNED_BYTE,
+            atlas.as_ptr() as *const GLvoid
+        );
+        gl::GenerateMipmap(gl::TEXTURE_2D);
+        gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_S, wrapping_mode as GLint);
+        gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_T, wrapping_mode as GLint);
+        gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl::LINEAR as GLint);
+        gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::LINEAR_MIPMAP_LINEAR as GLint);
+    }
+    debug_assert!(tex > 0);
+
+    let mut max_aniso = 0.0;
+    unsafe {
+        gl::GetFloatv(GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT, &mut max_aniso);
+        // Set the maximum!
+        gl::TexParameterf(gl::TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, max_aniso);
+    }
+
+    Ok(tex)
+}
+
 #[derive(Copy, Clone)]
 struct ShaderSource {
     vert_name: &'static str,
@@ -643,8 +686,6 @@ fn process_input(context: &mut OpenGLContext) -> CameraMovement {
 }
 
 fn main() {
-    //let mesh = create_mesh();
-    //let mesh_model_mat = Matrix4::from_scale(1.0 / 50.0);
     let mesh = create_box_mesh();
     let light_mesh = create_box_mesh();
     init_logger("opengl_demo.log");
