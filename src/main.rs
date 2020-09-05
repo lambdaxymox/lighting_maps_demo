@@ -486,13 +486,13 @@ struct ShaderSource {
 }
 
 fn create_mesh_shader_source() -> ShaderSource {
-    let vert_source = include_str!("../shaders/mesh.vert.glsl");
-    let frag_source = include_str!("../shaders/mesh.frag.glsl");
+    let vert_source = include_str!("../shaders/lighting_map.vert.glsl");
+    let frag_source = include_str!("../shaders/lighting_map.frag.glsl");
     
     ShaderSource {
-        vert_name: "mesh.vert.glsl",
+        vert_name: "lighting_map.vert.glsl",
         vert_source: vert_source,
-        frag_name: "mesh.frag.glsl",
+        frag_name: "lighting_map.frag.glsl",
         frag_source: frag_source,
     }
 }
