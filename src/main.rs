@@ -744,6 +744,7 @@ fn main() {
     let mut camera = create_camera(SCREEN_WIDTH, SCREEN_HEIGHT);
     let mut lights: [Light; 3] = create_lights(scene_center_world);
     let material = material::material_table()["jade"];
+    let lighting_map = create_lighting_map();
     let mut context = init_gl(SCREEN_WIDTH, SCREEN_HEIGHT);
 
     //  Load the model.
@@ -757,6 +758,7 @@ fn main() {
     send_to_gpu_uniforms_mesh(mesh_shader, &mesh_model_mat);
     send_to_gpu_uniforms_camera(mesh_shader, &camera);
     send_to_gpu_uniforms_material(mesh_shader, &material);
+    let diffuse_tex = send_to_gpu_texture(&lighting_map.diffuse, gl::CLAMP_TO_EDGE).unwrap();
 
     // Load the lighting cube model.
     let light_shader_source = create_light_shader_source();
@@ -797,6 +799,8 @@ fn main() {
             gl::ClearBufferfv(gl::DEPTH, 0, &CLEAR_DEPTH[0] as *const GLfloat);
             gl::Viewport(0, 0, context.width as GLint, context.height as GLint);
             gl::UseProgram(mesh_shader);
+            gl::ActiveTexture(gl::TEXTURE0);
+            gl::BindTexture(gl::TEXTURE_2D, diffuse_tex);
             gl::BindVertexArray(mesh_vao);
             gl::DrawArrays(gl::TRIANGLES, 0, mesh.len() as i32);
         }
