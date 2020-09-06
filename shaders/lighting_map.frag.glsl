@@ -1,4 +1,5 @@
 #version 330 core
+const int NUM_LIGHTS = 3;
 
 struct Camera {
     // The transformation converting from camera space to 
@@ -40,21 +41,19 @@ struct Light {
     vec3 specular;
 };
 
-const int num_lights = 3;
-
 in FragData vertex_data;
 
 uniform mat4 model_mat;
 uniform Camera camera;
 uniform Material material;
-uniform Light lights[num_lights];
+uniform Light lights[NUM_LIGHTS];
 
 out vec4 frag_color;
 
 
 void main() {
     vec3 frag_result = vec3(0.0, 0.0, 0.0);
-    for (int i = 0; i < num_lights; i++) {
+    for (int i = 0; i < NUM_LIGHTS; i++) {
         // Calculate the ambient part of the lighting model.
         vec3 frag_ambient = lights[i].ambient * vec3(texture(material.diffuse, vertex_data.tex_coords));
 
