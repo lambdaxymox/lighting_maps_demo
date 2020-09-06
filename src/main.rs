@@ -425,7 +425,7 @@ fn send_to_gpu_uniforms_light(shader: GLuint, lights: &[Light; 3]) {
 }
 
 fn send_to_gpu_textures_material(lighting_map: &LightingMap) -> (GLuint, GLuint) {
-    let diffuse_tex = send_to_gpu_texture(&lighting_map.diffuse, gl::CLAMP_TO_EDGE).unwrap();
+    let diffuse_tex = send_to_gpu_texture(&lighting_map.diffuse, gl::REPEAT).unwrap();
     let specular_tex = 0;
 
     (diffuse_tex, specular_tex)
@@ -586,8 +586,8 @@ fn send_to_gpu_texture(texture_image: &TextureImage2D, wrapping_mode: GLuint) ->
         gl::ActiveTexture(gl::TEXTURE0);
         gl::BindTexture(gl::TEXTURE_2D, tex);
         gl::TexImage2D(
-            gl::TEXTURE_2D, 0, gl::RGB as i32, texture_image.width as i32, texture_image.height as i32, 0,
-            gl::RGB, gl::UNSIGNED_BYTE,
+            gl::TEXTURE_2D, 0, gl::RGBA as i32, texture_image.width as i32, texture_image.height as i32, 0,
+            gl::RGBA, gl::UNSIGNED_BYTE,
             texture_image.as_ptr() as *const GLvoid
         );
         gl::GenerateMipmap(gl::TEXTURE_2D);
