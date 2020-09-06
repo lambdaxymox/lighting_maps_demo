@@ -21,7 +21,7 @@ struct FragData {
 // Material properties for the Blinn-Phong shader model.
 struct Material {
     sampler2D diffuse;
-    vec3 specular;
+    sampler2D specular;
     float specular_exponent;
 };
 
@@ -70,7 +70,7 @@ void main() {
         vec3 half_vec_eye = normalize(view_dir_eye + light_dir_eye);
         float dot_specular = max(dot(half_vec_eye, norm_eye), 0.0);
         float specular_factor = pow(dot_specular, material.specular_exponent);
-        vec3 frag_specular = lights[i].specular * material.specular * specular_factor;
+        vec3 frag_specular = lights[i].specular * vec3(texture(material.specular, vertex_data.tex_coords)) * specular_factor;
 
         frag_result += frag_ambient + frag_diffuse + frag_specular;
     }

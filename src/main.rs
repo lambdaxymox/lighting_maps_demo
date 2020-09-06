@@ -304,10 +304,10 @@ struct LightingMap {
 }
 
 fn create_lighting_map() -> LightingMap {
-    let diffuse_asset = include_bytes!("../assets/container2_diffuse.png");
-    let specular_asset = include_bytes!("../assets/container2_specular.png");
-    let diffuse = load_image(diffuse_asset);
-    let specular = load_image(specular_asset);
+    let diffuse_buffer = include_bytes!("../assets/container2_diffuse.png");
+    let specular_buffer = include_bytes!("../assets/container2_specular.png");
+    let diffuse = load_image(diffuse_buffer);
+    let specular = load_image(specular_buffer);
 
     LightingMap { diffuse: diffuse, specular: specular }
 }
@@ -426,7 +426,7 @@ fn send_to_gpu_uniforms_light(shader: GLuint, lights: &[Light; 3]) {
 
 fn send_to_gpu_textures_material(lighting_map: &LightingMap) -> (GLuint, GLuint) {
     let diffuse_tex = send_to_gpu_texture(&lighting_map.diffuse, gl::REPEAT).unwrap();
-    let specular_tex = 0;
+    let specular_tex = send_to_gpu_texture(&lighting_map.specular, gl::REPEAT).unwrap();
 
     (diffuse_tex, specular_tex)
 }
@@ -848,6 +848,8 @@ fn main() {
             gl::UseProgram(mesh_shader);
             gl::ActiveTexture(gl::TEXTURE0);
             gl::BindTexture(gl::TEXTURE_2D, diffuse_tex);
+            gl::ActiveTexture(gl::TEXTURE1);
+            gl::BindTexture(gl::TEXTURE_2D, specular_tex);
             gl::BindVertexArray(mesh_vao);
             gl::DrawArrays(gl::TRIANGLES, 0, mesh.len() as i32);
         }
