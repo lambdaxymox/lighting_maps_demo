@@ -468,19 +468,24 @@ fn send_to_gpu_mesh(shader: GLuint, mesh: &ObjMesh) -> (GLuint, GLuint, GLuint, 
     let mut v_pos_vbo = 0;
     unsafe {
         gl::GenBuffers(1, &mut v_pos_vbo);
+    }
+    debug_assert!(v_pos_vbo > 0);
+    unsafe {
         gl::BindBuffer(gl::ARRAY_BUFFER, v_pos_vbo);
         gl::BufferData(
             gl::ARRAY_BUFFER,
-            (3 * mem::size_of::<GLfloat>() * mesh.points.len()) as GLsizeiptr,
+            mesh.points.len_bytes() as GLsizeiptr,
             mesh.points.as_ptr() as *const GLvoid,
             gl::STATIC_DRAW
         );
     }
-    debug_assert!(v_pos_vbo > 0);
 
     let mut v_tex_vbo = 0;
     unsafe {
         gl::GenBuffers(1, &mut v_tex_vbo);
+    }
+    debug_assert!(v_tex_vbo > 0);
+    unsafe {
         gl::BindBuffer(gl::ARRAY_BUFFER, v_tex_vbo);
         gl::BufferData(
             gl::ARRAY_BUFFER,
@@ -489,11 +494,13 @@ fn send_to_gpu_mesh(shader: GLuint, mesh: &ObjMesh) -> (GLuint, GLuint, GLuint, 
             gl::STATIC_DRAW
         )
     }
-    debug_assert!(v_tex_vbo > 0);
 
     let mut v_norm_vbo = 0;
     unsafe {
         gl::GenBuffers(1, &mut v_norm_vbo);
+    }
+    debug_assert!(v_norm_vbo > 0);
+    unsafe {
         gl::BindBuffer(gl::ARRAY_BUFFER, v_norm_vbo);
         gl::BufferData(
             gl::ARRAY_BUFFER,
@@ -502,7 +509,6 @@ fn send_to_gpu_mesh(shader: GLuint, mesh: &ObjMesh) -> (GLuint, GLuint, GLuint, 
             gl::STATIC_DRAW
         );
     }
-    debug_assert!(v_norm_vbo > 0);
 
     let mut vao = 0;
     unsafe {
