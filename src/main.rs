@@ -306,10 +306,10 @@ struct LightingMap {
 fn create_lighting_map() -> LightingMap {
     let diffuse_asset = include_bytes!("../assets/container2_diffuse.png");
     let specular_asset = include_bytes!("../assets/container2_specular.png");
-    let diffuse_map = load_image(diffuse_asset);
-    let specular_map = load_image(specular_asset);
+    let diffuse = load_image(diffuse_asset);
+    let specular = load_image(specular_asset);
 
-    LightingMap { diffuse: diffuse_map, specular: specular_map }
+    LightingMap { diffuse: diffuse, specular: specular }
 }
 
 fn send_to_gpu_uniforms_mesh(shader: GLuint, model_mat: &Matrix4<f32>) {
@@ -433,6 +433,7 @@ fn send_to_gpu_textures_material(lighting_map: &LightingMap) -> (GLuint, GLuint)
 
 struct MaterialUniforms<'a> {
     diffuse_index: i32,
+    specular_index: i32,
     material: &'a Material<f32>,
 }
 
@@ -453,7 +454,7 @@ fn send_to_gpu_uniforms_material(shader: GLuint, uniforms: MaterialUniforms) {
     unsafe {
         gl::UseProgram(shader);
         gl::Uniform1i(material_diffuse_loc, uniforms.diffuse_index);
-        gl::Uniform3fv(material_specular_loc, 1, uniforms.material.specular.as_ptr());
+        gl::Uniform1i(material_specular_loc, uniforms.specular_index);
         gl::Uniform1f(material_specular_exponent_loc, uniforms.material.specular_exponent);
     }
 }
@@ -781,8 +782,13 @@ fn main() {
     let mut camera = create_camera(SCREEN_WIDTH, SCREEN_HEIGHT);
     let mut lights: [Light; 3] = create_lights(scene_center_world);
     let material_diffuse_index = 0;
+    let material_specular_index = 1;
     let material = material::material_table()["jade"];
-    let material_uniforms = MaterialUniforms { diffuse_index: material_diffuse_index, material: &material };
+    let material_uniforms = MaterialUniforms { 
+        diffuse_index: material_diffuse_index, 
+        specular_index: material_specular_index,
+        material: &material,
+    };
     let lighting_map = create_lighting_map();
     let mut context = init_gl(SCREEN_WIDTH, SCREEN_HEIGHT);
 
