@@ -422,15 +422,14 @@ fn send_to_gpu_uniforms_light(shader: GLuint, lights: &[Light; 3]) {
     }
 }
 
+fn send_to_gpu_textures_material(lighting_map: &LightingMap) -> (GLuint, GLuint) {
+    let diffuse_tex = send_to_gpu_texture(&lighting_map.diffuse, gl::CLAMP_TO_EDGE).unwrap();
+    let specular_tex = 0;
+
+    (diffuse_tex, specular_tex)
+}
+
 fn send_to_gpu_uniforms_material(shader: GLuint, material: &Material<f32>) {
-    let material_ambient_loc = unsafe {
-        gl::GetUniformLocation(shader, backend::gl_str("material.ambient").as_ptr())
-    };
-    debug_assert!(material_ambient_loc > -1);
-    let material_diffuse_loc = unsafe {
-        gl::GetUniformLocation(shader, backend::gl_str("material.diffuse").as_ptr())
-    };
-    debug_assert!(material_diffuse_loc > -1);
     let material_specular_loc = unsafe {
         gl::GetUniformLocation(shader, backend::gl_str("material.specular").as_ptr())
     };
@@ -442,19 +441,23 @@ fn send_to_gpu_uniforms_material(shader: GLuint, material: &Material<f32>) {
 
     unsafe {
         gl::UseProgram(shader);
-        gl::Uniform3fv(material_ambient_loc, 1, material.ambient.as_ptr());
-        gl::Uniform3fv(material_diffuse_loc, 1, material.diffuse.as_ptr());
         gl::Uniform3fv(material_specular_loc, 1, material.specular.as_ptr());
         gl::Uniform1f(material_specular_exponent_loc, material.specular_exponent);
     }
 }
 
-fn send_to_gpu_mesh(shader: GLuint, mesh: &ObjMesh) -> (GLuint, GLuint, GLuint) {
+fn send_to_gpu_mesh(shader: GLuint, mesh: &ObjMesh) -> (GLuint, GLuint, GLuint, GLuint) {
     let v_pos_loc = unsafe {
         gl::GetAttribLocation(shader, backend::gl_str("v_pos").as_ptr())
     };
     debug_assert!(v_pos_loc > -1);
     let v_pos_loc = v_pos_loc as u32;
+
+    let v_tex_loc = unsafe {
+        gl::GetAttribLocation(shader, backend::gl_str("v_tex").as_ptr())
+    };
+    debug_assert!(v_tex_loc > -1);
+    let v_tex_loc = v_tex_loc as u32;
 
     let v_norm_loc = unsafe {
         gl::GetAttribLocation(shader, backend::gl_str("v_norm").as_ptr())
@@ -475,6 +478,19 @@ fn send_to_gpu_mesh(shader: GLuint, mesh: &ObjMesh) -> (GLuint, GLuint, GLuint) 
     }
     debug_assert!(v_pos_vbo > 0);
 
+    let mut v_tex_vbo = 0;
+    unsafe {
+        gl::GenBuffers(1, &mut v_tex_vbo);
+        gl::BindBuffer(gl::ARRAY_BUFFER, v_tex_vbo);
+        gl::BufferData(
+            gl::ARRAY_BUFFER,
+            mesh.tex_coords.len_bytes() as GLsizeiptr,
+            mesh.tex_coords.as_ptr() as *const GLvoid,
+            gl::STATIC_DRAW
+        )
+    }
+    debug_assert!(v_tex_vbo > 0);
+
     let mut v_norm_vbo = 0;
     unsafe {
         gl::GenBuffers(1, &mut v_norm_vbo);
@@ -494,14 +510,17 @@ fn send_to_gpu_mesh(shader: GLuint, mesh: &ObjMesh) -> (GLuint, GLuint, GLuint) 
         gl::BindVertexArray(vao);
         gl::BindBuffer(gl::ARRAY_BUFFER, v_pos_vbo);
         gl::VertexAttribPointer(v_pos_loc, 3, gl::FLOAT, gl::FALSE, 0, ptr::null());
+        gl::BindBuffer(gl::ARRAY_BUFFER, v_tex_vbo);
+        gl::VertexAttribPointer(v_pos_loc, 2, gl::FLOAT, gl::FALSE, 0, ptr::null());
         gl::BindBuffer(gl::ARRAY_BUFFER, v_norm_vbo);
         gl::VertexAttribPointer(v_norm_loc, 3, gl::FLOAT, gl::FALSE, 0, ptr::null());
         gl::EnableVertexAttribArray(v_pos_loc);
+        gl::EnableVertexAttribArray(v_tex_loc);
         gl::EnableVertexAttribArray(v_norm_loc);
     }
     debug_assert!(vao > 0);
 
-    (vao, v_pos_vbo, v_norm_vbo)
+    (vao, v_pos_vbo, v_tex_vbo, v_norm_vbo)
 }
 
 fn send_to_gpu_light_mesh(shader: GLuint, mesh: &ObjMesh) -> (GLuint, GLuint) {
@@ -549,7 +568,7 @@ fn send_to_gpu_texture(texture_image: &TextureImage2D, wrapping_mode: GLuint) ->
         gl::ActiveTexture(gl::TEXTURE0);
         gl::BindTexture(gl::TEXTURE_2D, tex);
         gl::TexImage2D(
-            gl::TEXTURE_2D, 0, gl::RGBA as i32, texture_image.width as i32, texture_image.height as i32, 0,
+            gl::TEXTURE_2D, 0, gl::RGB as i32, texture_image.width as i32, texture_image.height as i32, 0,
             gl::RGB, gl::UNSIGNED_BYTE,
             texture_image.as_ptr() as *const GLvoid
         );
@@ -753,12 +772,13 @@ fn main() {
     let mesh_shader = send_to_gpu_shaders(&mut context, mesh_shader_source);
     let (
         mesh_vao, 
-        mesh_v_pos_vbo, 
+        mesh_v_pos_vbo,
+        mesh_v_tex_vbo,
         mesh_v_norm_vbo) = send_to_gpu_mesh(mesh_shader, &mesh);
     send_to_gpu_uniforms_mesh(mesh_shader, &mesh_model_mat);
     send_to_gpu_uniforms_camera(mesh_shader, &camera);
     send_to_gpu_uniforms_material(mesh_shader, &material);
-    let diffuse_tex = send_to_gpu_texture(&lighting_map.diffuse, gl::CLAMP_TO_EDGE).unwrap();
+    let (diffuse_tex, specular_tex) = send_to_gpu_textures_material(&lighting_map);
 
     // Load the lighting cube model.
     let light_shader_source = create_light_shader_source();
@@ -793,6 +813,7 @@ fn main() {
         send_to_gpu_uniforms_camera(mesh_shader, &camera);
         send_to_gpu_uniforms_camera(light_shader, &camera);
         send_to_gpu_uniforms_light(mesh_shader, &lights);
+
         // Illuminate the cube.
         unsafe {
             gl::ClearBufferfv(gl::COLOR, 0, &CLEAR_COLOR[0] as *const GLfloat);
@@ -802,9 +823,10 @@ fn main() {
             gl::ActiveTexture(gl::TEXTURE0);
             gl::BindTexture(gl::TEXTURE_2D, diffuse_tex);
             gl::BindVertexArray(mesh_vao);
+            println!("{}", mesh.len());
             gl::DrawArrays(gl::TRIANGLES, 0, mesh.len() as i32);
+            assert!(false);
         }
-        
         // Render the lights.
         let light_model_mat = lights[0].kinematics.model_mat() * Matrix4::from_scale(0.2);
         send_to_gpu_uniforms_mesh(light_shader, &light_model_mat);
