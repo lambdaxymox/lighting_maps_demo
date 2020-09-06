@@ -28,7 +28,7 @@ impl<S> Material<S> where S: ScalarFloat {
 /// There material parameters are derived from the OpenGL `teapots.c` demo, 
 /// c.f. `Silicon Graphics, Inc., 1994, Mark J. Kilgard` and the table found
 /// (here)[http://devernay.free.fr/cours/opengl/materials.html]
-fn raw_material_table() -> HashMap<&'static str, Material<f32>> {
+fn raw_sgi_material_table() -> HashMap<&'static str, Material<f32>> {
     let materials = [
         ("emerald", Material::new(
             Vector3::new(0.0215, 0.1745, 0.0215),
@@ -180,9 +180,9 @@ fn raw_material_table() -> HashMap<&'static str, Material<f32>> {
 }
 
 /// Create a table of materials for the Blinn-Phong shading model that can be sent to the 
-/// GPU directly.
-pub fn material_table() -> HashMap<&'static str, Material<f32>> {
-    raw_material_table()
+/// GPU directly derived from the original Silicon Graphics Institute data.
+pub fn sgi_material_table() -> HashMap<&'static str, Material<f32>> {
+    raw_sgi_material_table()
         .iter()
         .map(|(name, material)| { (*name, Material::new(
             material.ambient, 

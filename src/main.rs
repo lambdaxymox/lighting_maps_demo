@@ -783,7 +783,7 @@ fn main() {
     let mut lights: [Light; 3] = create_lights(scene_center_world);
     let material_diffuse_index = 0;
     let material_specular_index = 1;
-    let material = material::material_table()["jade"];
+    let material = material::sgi_material_table()["chrome"];
     let material_uniforms = MaterialUniforms { 
         diffuse_index: material_diffuse_index, 
         specular_index: material_specular_index,
