@@ -287,6 +287,8 @@ fn load_image(buffer: &[u8]) -> TextureImage2D {
     let mut image_data = vec![0 as u8; total_bytes as usize];
     image_decoder.read_image(&mut image_data).unwrap();
 
+    assert_eq!(total_bytes, (width * height * bytes_per_pixel) as u64);
+
     TextureImage2D {
         width: width,
         height: height,
@@ -429,7 +431,16 @@ fn send_to_gpu_textures_material(lighting_map: &LightingMap) -> (GLuint, GLuint)
     (diffuse_tex, specular_tex)
 }
 
-fn send_to_gpu_uniforms_material(shader: GLuint, material: &Material<f32>) {
+struct MaterialUniforms<'a> {
+    diffuse_index: i32,
+    material: &'a Material<f32>,
+}
+
+fn send_to_gpu_uniforms_material(shader: GLuint, uniforms: MaterialUniforms) {
+    let material_diffuse_loc = unsafe {
+        gl::GetUniformLocation(shader, backend::gl_str("material.diffuse").as_ptr())
+    };
+    debug_assert!(material_diffuse_loc > -1);
     let material_specular_loc = unsafe {
         gl::GetUniformLocation(shader, backend::gl_str("material.specular").as_ptr())
     };
@@ -441,8 +452,9 @@ fn send_to_gpu_uniforms_material(shader: GLuint, material: &Material<f32>) {
 
     unsafe {
         gl::UseProgram(shader);
-        gl::Uniform3fv(material_specular_loc, 1, material.specular.as_ptr());
-        gl::Uniform1f(material_specular_exponent_loc, material.specular_exponent);
+        gl::Uniform1i(material_diffuse_loc, uniforms.diffuse_index);
+        gl::Uniform3fv(material_specular_loc, 1, uniforms.material.specular.as_ptr());
+        gl::Uniform1f(material_specular_exponent_loc, uniforms.material.specular_exponent);
     }
 }
 
@@ -517,7 +529,7 @@ fn send_to_gpu_mesh(shader: GLuint, mesh: &ObjMesh) -> (GLuint, GLuint, GLuint, 
         gl::BindBuffer(gl::ARRAY_BUFFER, v_pos_vbo);
         gl::VertexAttribPointer(v_pos_loc, 3, gl::FLOAT, gl::FALSE, 0, ptr::null());
         gl::BindBuffer(gl::ARRAY_BUFFER, v_tex_vbo);
-        gl::VertexAttribPointer(v_pos_loc, 2, gl::FLOAT, gl::FALSE, 0, ptr::null());
+        gl::VertexAttribPointer(v_tex_loc, 2, gl::FLOAT, gl::FALSE, 0, ptr::null());
         gl::BindBuffer(gl::ARRAY_BUFFER, v_norm_vbo);
         gl::VertexAttribPointer(v_norm_loc, 3, gl::FLOAT, gl::FALSE, 0, ptr::null());
         gl::EnableVertexAttribArray(v_pos_loc);
@@ -768,7 +780,9 @@ fn main() {
     let scene_center_world = Vector3::<f32>::zero();
     let mut camera = create_camera(SCREEN_WIDTH, SCREEN_HEIGHT);
     let mut lights: [Light; 3] = create_lights(scene_center_world);
+    let material_diffuse_index = 0;
     let material = material::material_table()["jade"];
+    let material_uniforms = MaterialUniforms { diffuse_index: material_diffuse_index, material: &material };
     let lighting_map = create_lighting_map();
     let mut context = init_gl(SCREEN_WIDTH, SCREEN_HEIGHT);
 
@@ -783,7 +797,7 @@ fn main() {
         mesh_v_norm_vbo) = send_to_gpu_mesh(mesh_shader, &mesh);
     send_to_gpu_uniforms_mesh(mesh_shader, &mesh_model_mat);
     send_to_gpu_uniforms_camera(mesh_shader, &camera);
-    send_to_gpu_uniforms_material(mesh_shader, &material);
+    send_to_gpu_uniforms_material(mesh_shader, material_uniforms);
     let (diffuse_tex, specular_tex) = send_to_gpu_textures_material(&lighting_map);
 
     // Load the lighting cube model.
@@ -829,9 +843,7 @@ fn main() {
             gl::ActiveTexture(gl::TEXTURE0);
             gl::BindTexture(gl::TEXTURE_2D, diffuse_tex);
             gl::BindVertexArray(mesh_vao);
-            println!("{}", mesh.len());
             gl::DrawArrays(gl::TRIANGLES, 0, mesh.len() as i32);
-            assert!(false);
         }
         // Render the lights.
         let light_model_mat = lights[0].kinematics.model_mat() * Matrix4::from_scale(0.2);
