@@ -179,8 +179,8 @@ dependencies = [
 
 [[package]]
 name = "gdmath"
-version = "0.7.78"
-source = "git+https://github.com/lambdaxymox/gdmath#a49080cc0b5e1aabc45bbad5e7133f3db15d9f12"
+version = "0.7.80"
+source = "git+https://github.com/lambdaxymox/gdmath#d33eae38561f14267540f6b780d97b3987029795"
 dependencies = [
  "approx",
  "num-traits",
