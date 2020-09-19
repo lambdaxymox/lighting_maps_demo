@@ -120,7 +120,7 @@ fn create_box_mesh() -> ObjMesh {
 fn create_camera(width: u32, height: u32) -> Camera<f32> {
     let near = 0.1;
     let far = 100.0;
-    let fovy = Degrees(67.0);
+    let fovy = Degrees(72.0);
     let aspect = width as f32 / height as f32;
     let spec = CameraSpecification::new(near, far, fovy, aspect);
 
